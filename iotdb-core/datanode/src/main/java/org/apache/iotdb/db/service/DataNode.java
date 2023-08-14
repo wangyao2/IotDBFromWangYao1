@@ -34,6 +34,7 @@ import org.apache.iotdb.commons.file.SystemFileFactory;
 import org.apache.iotdb.commons.pipe.plugin.meta.PipePluginMeta;
 import org.apache.iotdb.commons.service.JMXService;
 import org.apache.iotdb.commons.service.RegisterManager;
+import org.apache.iotdb.commons.service.ServiceType;
 import org.apache.iotdb.commons.service.metric.MetricService;
 import org.apache.iotdb.commons.trigger.TriggerInformation;
 import org.apache.iotdb.commons.trigger.exception.TriggerManagementException;
@@ -48,6 +49,7 @@ import org.apache.iotdb.confignode.rpc.thrift.TDataNodeRestartReq;
 import org.apache.iotdb.confignode.rpc.thrift.TDataNodeRestartResp;
 import org.apache.iotdb.confignode.rpc.thrift.TGetJarInListReq;
 import org.apache.iotdb.confignode.rpc.thrift.TGetJarInListResp;
+import org.apache.iotdb.confignode.rpc.thrift.TNodeVersionInfo;
 import org.apache.iotdb.confignode.rpc.thrift.TRuntimeConfiguration;
 import org.apache.iotdb.confignode.rpc.thrift.TSystemConfigurationResp;
 import org.apache.iotdb.consensus.ConsensusFactory;
@@ -107,7 +109,10 @@ public class DataNode implements DataNodeMBean {
 
   private final String mbeanName =
       String.format(
-          "%s:%s=%s", "org.apache.iotdb.datanode.service", IoTDBConstant.JMX_TYPE, "DataNode");
+          "%s:%s=%s",
+          IoTDBConstant.IOTDB_SERVICE_JMX_NAME,
+          IoTDBConstant.JMX_TYPE,
+          ServiceType.DATA_NODE.getJmxName());
 
   private static final File SYSTEM_PROPERTIES =
       SystemFileFactory.INSTANCE.getFile(
@@ -205,14 +210,6 @@ public class DataNode implements DataNodeMBean {
 
     // Notice: Consider this DataNode as first start if the system.properties file doesn't exist
     boolean isFirstStart = IoTDBStartCheck.getInstance().checkIsFirstStart();
-
-    // Check target ConfigNodes
-    for (TEndPoint endPoint : config.getTargetConfigNodeList()) {
-      if (endPoint.getIp().equals("0.0.0.0")) {
-        throw new StartupException(
-            "The ip address of any target_config_node_list couldn't be 0.0.0.0");
-      }
-    }
 
     // Set this node
     thisNode.setIp(config.getInternalAddress());
@@ -361,7 +358,7 @@ public class DataNode implements DataNodeMBean {
     TDataNodeRegisterReq req = new TDataNodeRegisterReq();
     req.setDataNodeConfiguration(generateDataNodeConfiguration());
     req.setClusterName(config.getClusterName());
-    req.setBuildInfo(IoTDBConstant.BUILD_INFO);
+    req.setVersionInfo(new TNodeVersionInfo(IoTDBConstant.VERSION, IoTDBConstant.BUILD_INFO));
     TDataNodeRegisterResp dataNodeRegisterResp = null;
     while (retry > 0) {
       try (ConfigNodeClient configNodeClient =
@@ -421,7 +418,7 @@ public class DataNode implements DataNodeMBean {
     req.setClusterName(
         config.getClusterName() == null ? DEFAULT_CLUSTER_NAME : config.getClusterName());
     req.setDataNodeConfiguration(generateDataNodeConfiguration());
-    req.setBuildInfo(IoTDBConstant.BUILD_INFO);
+    req.setVersionInfo(new TNodeVersionInfo(IoTDBConstant.VERSION, IoTDBConstant.BUILD_INFO));
     TDataNodeRestartResp dataNodeRestartResp = null;
     while (retry > 0) {
       try (ConfigNodeClient configNodeClient =

@@ -30,6 +30,8 @@ import org.apache.iotdb.commons.conf.IoTDBConstant;
 import org.apache.iotdb.commons.exception.StartupException;
 import org.apache.iotdb.commons.service.JMXService;
 import org.apache.iotdb.commons.service.RegisterManager;
+import org.apache.iotdb.commons.service.ServiceType;
+import org.apache.iotdb.commons.service.metric.JvmGcMonitorMetrics;
 import org.apache.iotdb.commons.service.metric.MetricService;
 import org.apache.iotdb.commons.utils.TestOnly;
 import org.apache.iotdb.confignode.client.ConfigNodeRequestType;
@@ -42,6 +44,7 @@ import org.apache.iotdb.confignode.manager.ConfigManager;
 import org.apache.iotdb.confignode.rpc.thrift.TConfigNodeRegisterReq;
 import org.apache.iotdb.confignode.rpc.thrift.TConfigNodeRegisterResp;
 import org.apache.iotdb.confignode.rpc.thrift.TConfigNodeRestartReq;
+import org.apache.iotdb.confignode.rpc.thrift.TNodeVersionInfo;
 import org.apache.iotdb.confignode.service.thrift.ConfigNodeRPCService;
 import org.apache.iotdb.confignode.service.thrift.ConfigNodeRPCServiceProcessor;
 import org.apache.iotdb.db.service.metrics.ProcessMetrics;
@@ -85,7 +88,9 @@ public class ConfigNode implements ConfigNodeMBean {
   private final String mbeanName =
       String.format(
           "%s:%s=%s",
-          ConfigNodeConstant.CONFIGNODE_PACKAGE, ConfigNodeConstant.JMX_TYPE, "ConfigNode");
+          IoTDBConstant.IOTDB_SERVICE_JMX_NAME,
+          ConfigNodeConstant.JMX_TYPE,
+          ServiceType.CONFIG_NODE.getJmxName());
   private final RegisterManager registerManager = new RegisterManager();
 
   private ConfigManager configManager;
@@ -149,7 +154,9 @@ public class ConfigNode implements ConfigNodeMBean {
           TSStatus status =
               configManager
                   .getNodeManager()
-                  .updateConfigNodeIfNecessary(configNodeId, IoTDBConstant.BUILD_INFO);
+                  .updateConfigNodeIfNecessary(
+                      configNodeId,
+                      new TNodeVersionInfo(IoTDBConstant.VERSION, IoTDBConstant.BUILD_INFO));
           if (status.getCode() == TSStatusCode.SUCCESS_STATUS.getStatusCode()) {
             break;
           } else {
@@ -177,7 +184,8 @@ public class ConfigNode implements ConfigNodeMBean {
         configManager
             .getNodeManager()
             .applyConfigNode(
-                generateConfigNodeLocation(SEED_CONFIG_NODE_ID), IoTDBConstant.BUILD_INFO);
+                generateConfigNodeLocation(SEED_CONFIG_NODE_ID),
+                new TNodeVersionInfo(IoTDBConstant.VERSION, IoTDBConstant.BUILD_INFO));
         setUpMetricService();
         // Notice: We always set up Seed-ConfigNode's RPC service lastly to ensure
         // that the external service is not provided until Seed-ConfigNode is fully initialized
@@ -255,6 +263,7 @@ public class ConfigNode implements ConfigNodeMBean {
     MetricService.getInstance().addMetricSet(new ProcessMetrics());
     MetricService.getInstance().addMetricSet(new DiskMetrics(IoTDBConstant.CN_ROLE));
     MetricService.getInstance().addMetricSet(new NetMetrics(IoTDBConstant.CN_ROLE));
+    MetricService.getInstance().addMetricSet(JvmGcMonitorMetrics.getInstance());
     MetricService.getInstance().addMetricSet(ClientManagerMetrics.getInstance());
     MetricService.getInstance().addMetricSet(ThreadPoolMetrics.getInstance());
     initCpuMetrics();
@@ -306,7 +315,7 @@ public class ConfigNode implements ConfigNodeMBean {
             configManager.getClusterParameters(),
             generateConfigNodeLocation(INIT_NON_SEED_CONFIG_NODE_ID));
 
-    req.setBuildInfo(IoTDBConstant.BUILD_INFO);
+    req.setVersionInfo(new TNodeVersionInfo(IoTDBConstant.VERSION, IoTDBConstant.BUILD_INFO));
 
     TEndPoint targetConfigNode = CONF.getTargetConfigNode();
     if (targetConfigNode == null) {
