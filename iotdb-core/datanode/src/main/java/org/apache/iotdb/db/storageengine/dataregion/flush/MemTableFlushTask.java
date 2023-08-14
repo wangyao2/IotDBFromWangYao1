@@ -59,7 +59,7 @@ public class MemTableFlushTask {
   private static final WritingMetrics WRITING_METRICS = WritingMetrics.getInstance();
   private static IoTDBConfig config = IoTDBDescriptor.getInstance().getConfig();
   // private final Future<?> encodingTaskFuture;//这几个地方都是私有的，看来修改不用逃出这个类
-  private final Future<?> ioTaskFuture;
+  private final Future<?> ioTaskFuture;//合并提交
   private RestorableTsFileIOWriter writer;
 
   private final LinkedBlockingQueue<Object> encodingTaskQueue = new LinkedBlockingQueue<>();
